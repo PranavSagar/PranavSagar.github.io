@@ -34,13 +34,43 @@ body {
   right: 20px;
   top: 20px;
 }
-img {
+/*img {
   width: 25%;
   height: auto;
   opacity: .8;
   top: 5%;
   left: 40%;
   margin-left: 200px;
+  position: absolute;
+
+}*/
+.me {
+  width: 25%;
+  height: auto;
+  opacity: 1;
+  top: 5%;
+  left: 40%;
+  margin-left: 200px;
+  position: absolute;
+
+}
+.m2 {
+  width: 20%;
+  height: auto;
+  opacity: .8;
+  top: 5%;
+  left: 40%;
+  margin-left: 50px;
+  position: absolute;
+
+}
+.m1 {
+  width: 25%;
+  height: auto;
+  opacity: .8;
+  top: 15%;
+  left: 40%;
+  margin-left: 50px;
   position: absolute;
 
 }
