@@ -50,27 +50,27 @@ body {
   opacity: 1;
   top: 5%;
   left: 40%;
-  margin-left: 200px;
+  margin-left: 250px;
   position: absolute;
 
 }
 .m2 {
   width: 20%;
   height: auto;
-  opacity: .8;
-  top: 5%;
-  left: 40%;
-  margin-left: 50px;
+  opacity: .7;
+  top: 15%;
+  left: 32%;
+  margin-left: 180px;
   position: absolute;
 
 }
 .m1 {
   width: 25%;
   height: auto;
-  opacity: .8;
+  opacity: .7;
   top: 15%;
   left: 40%;
-  margin-left: 50px;
+  margin-left: 30px;
   position: absolute;
 
 }
