@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Content Intel — News Classifier</title>
+  <meta name="description" content="Classify any news headline into World, Sports, Business, or Sci/Tech using fine-tuned DistilBERT. 94.64% accuracy, sub-20ms inference.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #09090b;
+      --surface:    #111113;
+      --surface-2:  #18181b;
+      --border:     #27272a;
+      --border-2:   #3f3f46;
+      --text-1:     #fafafa;
+      --text-2:     #a1a1aa;
+      --text-3:     #71717a;
+      --world:      #3b82f6;
+      --sports:     #22c55e;
+      --business:   #f59e0b;
+      --scitech:    #8b5cf6;
+      --radius:     14px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2.5rem 1.25rem 3rem;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    header {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4.5rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-1);
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+
+    .logo-mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .nav-link {
+      font-size: 0.78rem;
+      color: var(--text-3);
+      text-decoration: none;
+      padding: 0.35rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: color 0.12s, border-color 0.12s, background 0.12s;
+      font-weight: 500;
+    }
+
+    .nav-link:hover {
+      color: var(--text-1);
+      border-color: var(--border-2);
+      background: var(--surface-2);
+    }
+
+    /* ── Hero ───────────────────────────────────────────────────────── */
+    main { width: 100%; max-width: 680px; }
+
+    .hero { margin-bottom: 2.75rem; }
+
+    .hero h1 {
+      font-size: clamp(2.1rem, 5.5vw, 3.1rem);
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      line-height: 1.08;
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 .gradient {
+      background: linear-gradient(130deg, #c4b5fd 0%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-chip {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--text-3);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.28rem 0.7rem;
+      letter-spacing: 0.01em;
+    }
+
+    /* ── Textarea ───────────────────────────────────────────────────── */
+    .input-block { margin-bottom: 1rem; }
+
+    .textarea-wrap { position: relative; }
+
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-1);
+      font-family: inherit;
+      font-size: 0.975rem;
+      line-height: 1.65;
+      padding: 1rem 1.25rem 2rem;
+      resize: vertical;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+      display: block;
+    }
+
+    textarea::placeholder { color: var(--text-3); }
+
+    textarea:focus {
+      border-color: #52525b;
+      box-shadow: 0 0 0 3px rgba(139,92,246,0.08);
+    }
+
+    .char-count {
+      position: absolute;
+      bottom: 0.7rem;
+      right: 1rem;
+      font-size: 0.68rem;
+      color: var(--text-3);
+      pointer-events: none;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Examples ───────────────────────────────────────────────────── */
+    .examples { margin-bottom: 1.5rem; }
+
+    .examples-label {
+      font-size: 0.68rem;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+      margin-bottom: 0.65rem;
+    }
+
+    .chips {
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      font-size: 0.775rem;
+      color: var(--text-2);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.33rem 0.8rem;
+      cursor: pointer;
+      transition: color 0.12s, border-color 0.12s, background 0.12s;
+      white-space: nowrap;
+      font-family: inherit;
+      font-weight: 400;
+    }
+
+    .chip:hover { background: var(--surface-2); border-color: var(--border-2); color: var(--text-1); }
+    .chip[data-cat="world"]:hover    { border-color: var(--world);    color: var(--world); }
+    .chip[data-cat="sports"]:hover   { border-color: var(--sports);   color: var(--sports); }
+    .chip[data-cat="business"]:hover { border-color: var(--business); color: var(--business); }
+    .chip[data-cat="scitech"]:hover  { border-color: var(--scitech);  color: var(--scitech); }
+
+    /* ── Button ─────────────────────────────────────────────────────── */
+    .classify-btn {
+      width: 100%;
+      padding: 0.875rem;
+      background: #fafafa;
+      color: #09090b;
+      border: none;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1.75rem;
+      transition: background 0.12s, transform 0.1s, box-shadow 0.12s;
+      letter-spacing: -0.01em;
+    }
+
+    .classify-btn:hover:not(:disabled) {
+      background: #e4e4e7;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .classify-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+
+    .classify-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-arrow { transition: transform 0.12s; }
+    .classify-btn:hover:not(:disabled) .btn-arrow { transform: translateX(2px); }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(9,9,11,0.25);
+      border-top-color: #09090b;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    .classify-btn.loading .spinner   { display: block; }
+    .classify-btn.loading .btn-label { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ──────────────────────────────────────────────────────── */
+    .error-msg {
+      background: rgba(239,68,68,0.07);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 10px;
+      padding: 0.8rem 1rem;
+      font-size: 0.84rem;
+      color: #f87171;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .error-msg.show { display: block; animation: fadeUp 0.2s ease; }
+
+    /* ── Result card ────────────────────────────────────────────────── */
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.5rem 1.25rem;
+      display: none;
+    }
+    .result-card.show { display: block; animation: fadeUp 0.28s cubic-bezier(0.16,1,0.3,1); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      gap: 1rem;
+    }
+
+    .result-label-block {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      min-width: 0;
+    }
+
+    .result-icon {
+      font-size: 1.75rem;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .result-label-text {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      white-space: nowrap;
+    }
+
+    .result-confidence {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      flex-shrink: 0;
+    }
+
+    /* Main confidence bar */
+    .main-track {
+      height: 5px;
+      background: var(--surface-2);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--border);
+    }
+
+    .main-fill {
+      height: 100%;
+      border-radius: 3px;
+      width: 0;
+      transition: width 0.9s cubic-bezier(0.16,1,0.3,1);
+    }
+
+    /* Score breakdown */
+    .breakdown-heading {
+      font-size: 0.67rem;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+      margin-bottom: 0.8rem;
+    }
+
+    .score-rows { display: flex; flex-direction: column; gap: 0.55rem; }
+
+    .score-row {
+      display: grid;
+      grid-template-columns: 72px 1fr 38px;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .score-name {
+      font-size: 0.8rem;
+      color: var(--text-2);
+      font-weight: 400;
+    }
+
+    .score-track {
+      height: 4px;
+      background: var(--surface-2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .score-fill {
+      height: 100%;
+      border-radius: 2px;
+      width: 0;
+      transition: width 0.9s cubic-bezier(0.16,1,0.3,1);
+    }
+
+    .score-pct {
+      font-size: 0.76rem;
+      color: var(--text-3);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Metadata row */
+    .result-meta {
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-tag {
+      font-size: 0.73rem;
+      color: var(--text-3);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .meta-tag svg { opacity: 0.5; flex-shrink: 0; }
+
+    /* ── Footer ─────────────────────────────────────────────────────── */
+    footer {
+      margin-top: 3.5rem;
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      justify-content: center;
+      gap: 1.75rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+    }
+
+    .footer-link {
+      font-size: 0.73rem;
+      color: var(--text-3);
+      text-decoration: none;
+      transition: color 0.12s;
+      font-weight: 400;
+    }
+
+    .footer-link:hover { color: var(--text-2); }
+
+    /* ── Responsive ─────────────────────────────────────────────────── */
+    @media (max-width: 500px) {
+      body { padding: 1.5rem 1rem 2.5rem; }
+      header { margin-bottom: 3rem; }
+      .hero h1 { font-size: 1.9rem; }
+      .result-top { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+      .result-confidence { font-size: 1.25rem; }
+      .result-label-text { font-size: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<header>
+  <a class="logo" href="https://pranavsagar.pages.dev" title="Back to portfolio">
+    <div class="logo-mark">✦</div>
+    Content Intel
+  </a>
+  <nav class="nav-links">
+    <a class="nav-link" href="https://github.com/PranavSagar/content-intel-pipeline" target="_blank" rel="noopener">GitHub</a>
+    <a class="nav-link" href="https://pranavsagar10-content-intel-classifier.hf.space/docs" target="_blank" rel="noopener">API</a>
+  </nav>
+</header>
+
+<!-- ── Main ────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Classify any<br><span class="gradient">news headline.</span></h1>
+    <div class="hero-stats">
+      <span class="stat-chip">94.64% accuracy</span>
+      <span class="stat-chip">DistilBERT</span>
+      <span class="stat-chip">&lt;20 ms inference</span>
+      <span class="stat-chip">4 categories</span>
+    </div>
+  </div>
+
+  <!-- Textarea -->
+  <div class="input-block">
+    <div class="textarea-wrap">
+      <textarea
+        id="input"
+        placeholder="Enter a news headline or article excerpt…"
+        maxlength="512"
+        rows="4"
+        spellcheck="false"
+      ></textarea>
+      <span class="char-count" id="charCount">0 / 512</span>
+    </div>
+  </div>
+
+  <!-- Example chips -->
+  <div class="examples">
+    <div class="examples-label">Try an example</div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <!-- CTA -->
+  <button class="classify-btn" id="classifyBtn">
+    <span class="btn-label">
+      Classify
+      <span class="btn-arrow">→</span>
+    </span>
+    <div class="spinner"></div>
+  </button>
+
+  <!-- Error -->
+  <div class="error-msg" id="errorMsg" role="alert"></div>
+
+  <!-- Result -->
+  <div class="result-card" id="resultCard" role="region" aria-label="Classification result" aria-live="polite">
+    <div class="result-top">
+      <div class="result-label-block">
+        <span class="result-icon" id="rIcon"></span>
+        <span class="result-label-text" id="rLabel"></span>
+      </div>
+      <span class="result-confidence" id="rConf"></span>
+    </div>
+
+    <div class="main-track">
+      <div class="main-fill" id="mainFill"></div>
+    </div>
+
+    <div class="breakdown-heading">All categories</div>
+    <div class="score-rows" id="scoreRows"></div>
+
+    <div class="result-meta">
+      <span class="meta-tag">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="rLatency"></span>
+      </span>
+      <span class="meta-tag">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        DistilBERT · AG News
+      </span>
+      <span class="meta-tag">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Live inference
+      </span>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Footer ──────────────────────────────────────────────────────────── -->
+<footer>
+  <a class="footer-link" href="https://github.com/PranavSagar/content-intel-pipeline" target="_blank" rel="noopener">Source code</a>
+  <a class="footer-link" href="https://huggingface.co/pranavsagar10/content-classifier-distilbert" target="_blank" rel="noopener">HF Model</a>
+  <a class="footer-link" href="https://dagshub.com/PranavSagar/content-intel-pipeline.mlflow" target="_blank" rel="noopener">MLflow</a>
+  <a class="footer-link" href="https://pranavsagar.grafana.net/d/content-intel-pipeline" target="_blank" rel="noopener">Grafana</a>
+</footer>
+
+<script>
+  const API = 'https://pranavsagar10-content-intel-classifier.hf.space/classify';
+
+  const CATS = {
+    'World':    { icon: '🌍', color: '#3b82f6' },
+    'Sports':   { icon: '⚽', color: '#22c55e' },
+    'Business': { icon: '💼', color: '#f59e0b' },
+    'Sci/Tech': { icon: '🔬', color: '#8b5cf6' },
+  };
+
+  const EXAMPLES = [
+    { text: 'Federal Reserve raises interest rates by 25 basis points amid inflation concerns', cat: 'business' },
+    { text: 'NASA Mars rover discovers ancient microbial signatures beneath the surface', cat: 'scitech' },
+    { text: 'Ronaldo scores hat-trick as Portugal advances to the World Cup final', cat: 'sports' },
+    { text: 'UN Security Council holds emergency session over Ukraine ceasefire talks', cat: 'world' },
+    { text: 'Apple quarterly earnings beat analyst expectations, iPhone sales surge 18%', cat: 'business' },
+    { text: 'New CRISPR technique successfully reverses hearing loss in clinical trial', cat: 'scitech' },
+    { text: 'Djokovic wins record 25th Grand Slam at Australian Open', cat: 'sports' },
+    { text: 'G7 nations agree on fresh sanctions package targeting energy exports', cat: 'world' },
+  ];
+
+  // Render example chips
+  const chipsEl = document.getElementById('chips');
+  EXAMPLES.forEach(ex => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.dataset.cat = ex.cat;
+    btn.textContent = ex.text.length > 44 ? ex.text.slice(0, 44) + '…' : ex.text;
+    btn.title = ex.text;
+    btn.addEventListener('click', () => {
+      document.getElementById('input').value = ex.text;
+      updateCount();
+      document.getElementById('input').focus();
+    });
+    chipsEl.appendChild(btn);
+  });
+
+  // Character counter
+  const inputEl  = document.getElementById('input');
+  const countEl  = document.getElementById('charCount');
+  function updateCount() {
+    countEl.textContent = `${inputEl.value.length} / 512`;
+  }
+  inputEl.addEventListener('input', updateCount);
+
+  // Cmd/Ctrl + Enter shortcut
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) run();
+  });
+
+  document.getElementById('classifyBtn').addEventListener('click', run);
+
+  async function run() {
+    const text = inputEl.value.trim();
+    if (!text) { showError('Please enter a headline or text to classify.'); return; }
+
+    setLoading(true);
+    clearError();
+    clearResult();
+
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server returned ${res.status}`);
+      }
+
+      renderResult(await res.json());
+    } catch (err) {
+      const msg = err.message.includes('fetch')
+        ? 'Could not reach the classifier API. The model may be waking up — try again in a moment.'
+        : err.message;
+      showError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderResult(data) {
+    const cat  = CATS[data.label] || { icon: '📰', color: '#71717a' };
+    const conf = Math.round(data.confidence * 100);
+
+    document.getElementById('rIcon').textContent  = cat.icon;
+    document.getElementById('rLabel').textContent = data.label;
+    document.getElementById('rLabel').style.color = cat.color;
+    document.getElementById('rConf').textContent  = `${conf}%`;
+    document.getElementById('rConf').style.color  = cat.color;
+    document.getElementById('rLatency').textContent = `${data.latency_ms} ms`;
+
+    // Main bar (double rAF ensures CSS transition fires after display:block)
+    const mainFill = document.getElementById('mainFill');
+    mainFill.style.transition = 'none';
+    mainFill.style.width = '0';
+    mainFill.style.background = cat.color;
+
+    document.getElementById('resultCard').classList.add('show');
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      mainFill.style.transition = 'width 0.9s cubic-bezier(0.16,1,0.3,1)';
+      mainFill.style.width = `${conf}%`;
+    }));
+
+    // Score breakdown
+    const rowsEl = document.getElementById('scoreRows');
+    rowsEl.innerHTML = '';
+
+    const scores = data.scores
+      ? Object.entries(data.scores).sort(([,a],[,b]) => b - a)
+      : [[data.label, data.confidence]];
+
+    scores.forEach(([label, score], i) => {
+      const c   = CATS[label] || { color: '#71717a' };
+      const pct = Math.round(score * 100);
+      const row = document.createElement('div');
+      row.className = 'score-row';
+      row.innerHTML = `
+        <span class="score-name">${label}</span>
+        <div class="score-track">
+          <div class="score-fill" data-pct="${pct}" style="background:${c.color};transition-delay:${i * 55}ms"></div>
+        </div>
+        <span class="score-pct">${pct}%</span>`;
+      rowsEl.appendChild(row);
+    });
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.querySelectorAll('.score-fill').forEach(bar => {
+        bar.style.width = `${bar.dataset.pct}%`;
+      });
+    }));
+  }
+
+  function setLoading(on) {
+    const btn = document.getElementById('classifyBtn');
+    btn.classList.toggle('loading', on);
+    btn.disabled = on;
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+
+  function clearError()  { document.getElementById('errorMsg').classList.remove('show'); }
+  function clearResult() { document.getElementById('resultCard').classList.remove('show'); }
+</script>
+
+</body>
+</html>
